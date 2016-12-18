@@ -128,7 +128,7 @@ class BlocktrailSDK
      * @throws UnknownEndpointSpecificError
      * @throws \Exception
      */
-    private function badResponseError($httpResponseCode)
+    private function badResponseError($httpResponseCode, $data)
     {
         if ($httpResponseCode == 400 || $httpResponseCode == 403) {
             if (isset($data['msg'])) {
@@ -162,8 +162,7 @@ class BlocktrailSDK
             $response = $this->client->get($url, $query);
             return $response;
         } catch (BadResponseException $e) {
-            $info = $e->getCurlInfo();
-            return $this->badResponseError($info['http_code']);
+            return $this->badResponseError($e->getCurlInfo()['http_code'], $e->getResult());
         }
     }
 
@@ -179,11 +178,7 @@ class BlocktrailSDK
             $response = $this->client->post($url, $query, $body);
             return $response;
         } catch (BadResponseException $e) {
-            $info = $e->getCurlInfo();
-            $result = $e->getResult();
-            print_r($info);
-            print_r($result);
-            return $this->badResponseError($info['http_code']);
+            return $this->badResponseError($e->getCurlInfo()['http_code'], $e->getResult());
         }
     }
 
