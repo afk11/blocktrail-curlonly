@@ -1,0 +1,11 @@
+{
+  "require": {
+    "afk11/minirest": "v1.0.2"
+  },
+  "licence": "MIT",
+  "autoload": {
+    "psr-4": {
+      "Afk11\\Blocktrail\\": "src/"
+    }
+  }
+}
