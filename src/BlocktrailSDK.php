@@ -2,7 +2,6 @@
 
 namespace Afk11\Blocktrail;
 
-use Afk11\Blocktrail\Exception\EmptyResponse;
 use Afk11\Blocktrail\Exception\EndpointSpecificError;
 use Afk11\Blocktrail\Exception\GenericHTTPError;
 use Afk11\Blocktrail\Exception\GenericServerError;
