@@ -1,12 +1,21 @@
 {
   "name": "afk11/blocktrail-curlonly",
   "require": {
-    "afk11/minirest": "v1.0.2"
+    "afk11/minirest": "v1.0.3",
+    "squizlabs/php_codesniffer": "^2.7"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^4.5|^5.0"
   },
   "licence": "MIT",
   "autoload": {
     "psr-4": {
       "Afk11\\Blocktrail\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Afk11\\Blocktrail\\Test\\": "test/"
     }
   }
 }

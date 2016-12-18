@@ -1,8 +1,8 @@
 <?php
 
-namespace \BitWasp\CommonBlockchain\Test;
+namespace Afk11\Blocktrail\Test;
 
-abstract class AbstractTest extends \PHPUnit_Framework_TestCase
+abstract class AbstractTestCase extends \PHPUnit_Framework_TestCase
 {
 
 }

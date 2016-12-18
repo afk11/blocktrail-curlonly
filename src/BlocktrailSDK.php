@@ -2,11 +2,19 @@
 
 namespace Afk11\Blocktrail;
 
-
+use Afk11\Blocktrail\Exception\EmptyResponse;
+use Afk11\Blocktrail\Exception\EndpointSpecificError;
+use Afk11\Blocktrail\Exception\GenericHTTPError;
+use Afk11\Blocktrail\Exception\GenericServerError;
+use Afk11\Blocktrail\Exception\InvalidCredentials;
+use Afk11\Blocktrail\Exception\MissingEndpoint;
+use Afk11\Blocktrail\Exception\ObjectNotFound;
+use Afk11\Blocktrail\Exception\UnknownEndpointSpecificError;
+use Afk11\MiniRest\BadResponseException;
 use Afk11\MiniRest\RestClient;
 use Afk11\MiniRest\RestClientInterface;
 
-class SDK
+class BlocktrailSDK
 {
     const AGENT = 'blocktrail-php-curlonly';
     const VERSION = 'v0.0.1';
@@ -15,6 +23,11 @@ class SDK
      * @var RestClientInterface
      */
     protected $client;
+
+    /**
+     * @var bool
+     */
+    private $verboseErrors = false;
 
     /**
      * BlocktrailSDK constructor.
@@ -47,12 +60,141 @@ class SDK
         ;
     }
 
+    // BTC/Sat conversion functions taken from upstream
+
+    /**
+     * convert a Satoshi value to a BTC value
+     *
+     * @param int       $satoshi
+     * @return float
+     */
+    public static function toBTC($satoshi)
+    {
+        return bcdiv((int)(string)$satoshi, 100000000, 8);
+    }
+
+    /**
+     * convert a Satoshi value to a BTC value and return it as a string
+     *
+     * @param int       $satoshi
+     * @return string
+     */
+    public static function toBTCString($satoshi)
+    {
+        return sprintf("%.8f", self::toBTC($satoshi));
+    }
+
+    /**
+     * convert a BTC value to a Satoshi value
+     *
+     * @param float     $btc
+     * @return string
+     */
+    public static function toSatoshiString($btc)
+    {
+        return bcmul(sprintf("%.8f", (float)$btc), 100000000, 0);
+    }
+
+    /**
+     * convert a BTC value to a Satoshi value
+     *
+     * @param float     $btc
+     * @return string
+     */
+    public static function toSatoshi($btc)
+    {
+        return (int)self::toSatoshiString($btc);
+    }
+
+
+    /**
+     * @param bool $setting
+     * @return $this
+     */
+    public function setVerboseErrors($setting)
+    {
+        $this->verboseErrors = $setting;
+        return $this;
+    }
+
+    /**
+     * @param int $httpResponseCode
+     * @return array
+     * @throws EndpointSpecificError
+     * @throws GenericHTTPError
+     * @throws GenericServerError
+     * @throws InvalidCredentials
+     * @throws MissingEndpoint
+     * @throws ObjectNotFound
+     * @throws UnknownEndpointSpecificError
+     * @throws \Exception
+     */
+    private function badResponseError($httpResponseCode)
+    {
+        if ($httpResponseCode == 400 || $httpResponseCode == 403) {
+            if (isset($data['msg'])) {
+                throw new EndpointSpecificError(!is_string($data['msg']) ? json_encode($data['msg']) : $data['msg'], $data['code']);
+            } else {
+                throw new UnknownEndpointSpecificError(Blocktrail::EXCEPTION_UNKNOWN_ENDPOINT_SPECIFIC_ERROR);
+            }
+        } elseif ($httpResponseCode == 401) {
+            throw new InvalidCredentials(Blocktrail::EXCEPTION_INVALID_CREDENTIALS, $httpResponseCode);
+        } elseif ($httpResponseCode == 404) {
+            if (isset($response['msg']) && $response['msg'] === "Endpoint Not Found") {
+                throw new MissingEndpoint(Blocktrail::EXCEPTION_MISSING_ENDPOINT, $httpResponseCode);
+            } else {
+                throw new ObjectNotFound(Blocktrail::EXCEPTION_OBJECT_NOT_FOUND, $httpResponseCode);
+            }
+        } elseif ($httpResponseCode == 500) {
+            throw new GenericServerError(Blocktrail::EXCEPTION_GENERIC_SERVER_ERROR . "\nServer Response: " . (isset($response['msg']) ? $response['msg'] : '*nothing*'), $httpResponseCode);
+        } else {
+            throw new GenericHTTPError(Blocktrail::EXCEPTION_GENERIC_HTTP_ERROR . "\nServer Response: " . (isset($response['msg']) ? $response['msg'] : '*nothing*'), $httpResponseCode);
+        }
+    }
+
+    /**
+     * @param string $url
+     * @param null|array $query
+     * @return array
+     */
+    private function get($url, $query = null)
+    {
+        try {
+            $response = $this->client->get($url, $query);
+            return $response;
+        } catch (BadResponseException $e) {
+            $info = $e->getCurlInfo();
+            return $this->badResponseError($info['http_code']);
+        }
+    }
+
+    /**
+     * @param string $url
+     * @param null|array $query
+     * @param array $body
+     * @return array
+     */
+    private function post($url, $query, array $body = [])
+    {
+        try {
+            $response = $this->client->post($url, $query, $body);
+            return $response;
+        } catch (BadResponseException $e) {
+            $info = $e->getCurlInfo();
+            $result = $e->getResult();
+            print_r($info);
+            print_r($result);
+            return $this->badResponseError($info['http_code']);
+        }
+    }
+
     /**
      * @param string $address
      * @return array
      */
-    public function address($address) {
-        return $this->client->get("address/{$address}");
+    public function address($address)
+    {
+        return $this->get("address/{$address}");
     }
 
     /**
@@ -62,14 +204,15 @@ class SDK
      * @param string $sortDir
      * @return array
      */
-    public function addressTransactions($address, $page = 1, $limit = 20, $sortDir = 'asc') {
+    public function addressTransactions($address, $page = 1, $limit = 20, $sortDir = 'asc')
+    {
         $query = [
             'page' => $page,
             'limit' => $limit,
             'sort_dir' => $sortDir
         ];
 
-        return $this->client->get("address/{$address}/transactions", $query);
+        return $this->get("address/{$address}/transactions", $query);
     }
 
     /**
@@ -79,14 +222,15 @@ class SDK
      * @param string $sortDir
      * @return array
      */
-    public function addressUnconfirmedTransactions($address, $page = 1, $limit = 20, $sortDir = 'asc') {
+    public function addressUnconfirmedTransactions($address, $page = 1, $limit = 20, $sortDir = 'asc')
+    {
         $query = [
             'page' => $page,
             'limit' => $limit,
             'sort_dir' => $sortDir
         ];
 
-        return $this->client->get("address/{$address}/unconfirmed-transactions", $query);
+        return $this->get("address/{$address}/unconfirmed-transactions", $query);
     }
 
     /**
@@ -96,14 +240,15 @@ class SDK
      * @param string $sortDir
      * @return array
      */
-    public function addressUnspentOutputs($address, $page = 1, $limit = 20, $sortDir = 'asc') {
+    public function addressUnspentOutputs($address, $page = 1, $limit = 20, $sortDir = 'asc')
+    {
         $query = [
             'page' => $page,
             'limit' => $limit,
             'sort_dir' => $sortDir
         ];
 
-        return $this->client->get("address/{$address}/unspent-outputs", $query);
+        return $this->get("address/{$address}/unspent-outputs", $query);
     }
 
     /**
@@ -113,14 +258,15 @@ class SDK
      * @param string $sortDir
      * @return array
      */
-    public function batchAddressUnspentOutputs($addresses, $page = 1, $limit = 20, $sortDir = 'asc') {
+    public function batchAddressUnspentOutputs($addresses, $page = 1, $limit = 20, $sortDir = 'asc')
+    {
         $query = [
             'page' => $page,
             'limit' => $limit,
             'sort_dir' => $sortDir
         ];
 
-        return $this->client->post("address/unspent-outputs", $query, ['addresses' => $addresses]);
+        return $this->post("address/unspent-outputs", $query, ['addresses' => $addresses]);
     }
 
     /**
@@ -128,8 +274,10 @@ class SDK
      * @param string $signature
      * @return array
      */
-    public function verifyAddress($address, $signature) {
-        return $this->client->post("address/{$address}/verify", null, ['signature' => $signature]);
+    public function verifyAddress($address, $signature)
+    {
+        $response = $this->post("address/{$address}/verify", null, ['signature' => $signature]);
+        return $response;
     }
 
     /**
@@ -146,21 +294,23 @@ class SDK
             'sort_dir' => $sortDir
         ];
 
-        return $this->client->post("all-blocks", $query);
+        return $this->post("all-blocks", $query);
     }
 
     /**
      * @return array
      */
-    public function blockLatest() {
-        return $this->client->get("block/latest");
+    public function blockLatest()
+    {
+        return $this->get("block/latest");
     }
 
     /**
      * @param string $block
      * @return array
      */
-    public function block($block) {
+    public function block($block)
+    {
         return $this->client->get("block/{$block}");
     }
 
@@ -186,7 +336,8 @@ class SDK
      * @param string $txhash
      * @return array
      */
-    public function transaction($txhash) {
+    public function transaction($txhash)
+    {
         return $this->client->get("transaction/{$txhash}");
     }
 
@@ -195,7 +346,8 @@ class SDK
      * @param int $amount
      * @return array
      */
-    public function faucetWithdrawl($address, $amount = 10000) {
+    public function faucetWithdrawl($address, $amount = 10000)
+    {
         return $this->client->post('faucet/withdrawl', null, [
             "address" => $address,
             "amount" => $amount
