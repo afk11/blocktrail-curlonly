@@ -105,7 +105,6 @@ class BlocktrailSDK
         return (int)self::toSatoshiString($btc);
     }
 
-
     /**
      * @param bool $setting
      * @return $this
@@ -152,18 +151,30 @@ class BlocktrailSDK
     }
 
     /**
+     * @param string $method
+     * @param string $url
+     * @param null $query
+     * @param array $body
+     * @return array
+     */
+    private function request($method, $url, $query = null, array $body = [])
+    {
+        try {
+            $response = $this->client->request($method, $url, $query, $body);
+            return $response;
+        } catch (BadResponseException $e) {
+            return $this->badResponseError($e->getCurlInfo()['http_code'], $e->getResult());
+        }
+    }
+
+    /**
      * @param string $url
      * @param null|array $query
      * @return array
      */
     private function get($url, $query = null)
     {
-        try {
-            $response = $this->client->get($url, $query);
-            return $response;
-        } catch (BadResponseException $e) {
-            return $this->badResponseError($e->getCurlInfo()['http_code'], $e->getResult());
-        }
+        return $this->request(RestClient::GET, $url, $query);
     }
 
     /**
@@ -174,12 +185,7 @@ class BlocktrailSDK
      */
     private function post($url, $query, array $body = [])
     {
-        try {
-            $response = $this->client->post($url, $query, $body);
-            return $response;
-        } catch (BadResponseException $e) {
-            return $this->badResponseError($e->getCurlInfo()['http_code'], $e->getResult());
-        }
+        return $this->request(RestClient::POST, $url, $query, $body);
     }
 
     /**
@@ -288,7 +294,7 @@ class BlocktrailSDK
             'sort_dir' => $sortDir
         ];
 
-        return $this->post("all-blocks", $query);
+        return $this->get("all-blocks", $query);
     }
 
     /**
@@ -305,7 +311,7 @@ class BlocktrailSDK
      */
     public function block($block)
     {
-        return $this->client->get("block/{$block}");
+        return $this->get("block/{$block}");
     }
 
     /**
@@ -323,7 +329,7 @@ class BlocktrailSDK
             'sort_dir' => $sortDir
         ];
 
-        return $this->client->post("block/{$block}/transactions", $query);
+        return $this->get("block/{$block}/transactions", $query);
     }
 
     /**
@@ -332,7 +338,7 @@ class BlocktrailSDK
      */
     public function transaction($txhash)
     {
-        return $this->client->get("transaction/{$txhash}");
+        return $this->get("transaction/{$txhash}");
     }
 
     /**
@@ -342,7 +348,7 @@ class BlocktrailSDK
      */
     public function faucetWithdrawl($address, $amount = 10000)
     {
-        return $this->client->post('faucet/withdrawl', null, [
+        return $this->post('faucet/withdrawl', null, [
             "address" => $address,
             "amount" => $amount
         ]);
