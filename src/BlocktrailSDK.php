@@ -52,7 +52,7 @@ class BlocktrailSDK
             $apiEndpoint .= "/{$apiVersion}/{$network}";
         }
 
-        ($this->client = new RestClient($apiKey, $apiSecret, $apiVersion, $apiEndpoint))
+        ($this->client = new RestClient($apiKey, $apiSecret, $apiEndpoint))
             ->setApiKeyQueryString(true)
             ->setUserAgent(self::AGENT)
             ->setClientVersion(self::VERSION)

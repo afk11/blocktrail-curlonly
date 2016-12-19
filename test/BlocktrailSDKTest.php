@@ -60,10 +60,6 @@ class BlocktrailSDKTest extends AbstractTestCase
         return new BlocktrailSDK("TESTKEY-FAIL", "TESTSECRET-FAIL");
     }
 
-    public function testUpgradeKeyIndex()
-    {
-        $this->markTestIncomplete("@TODO: test upgrade key index");
-    }
     public function testSatoshiConversion()
     {
         $toSatoshi = [
@@ -83,7 +79,7 @@ class BlocktrailSDKTest extends AbstractTestCase
             [21000000.00000009,     "2100000000000009",     2100000000000009], // this is the max possible amount of BTC (atm)
             ["210000000.00000009",  "21000000000000009",    21000000000000009],
             [210000000.00000009,    "21000000000000009",    21000000000000009],
-            // thee fail because when the BTC value is converted to a float it looses precision
+            // these fail because when the BTC value is converted to a float it looses precision
             // ["2100000000.00000009", "210000000000000009", 210000000000000009],
             // [2100000000.00000009,   "210000000000000009", 210000000000000009],
         ];
@@ -129,16 +125,13 @@ class BlocktrailSDKTest extends AbstractTestCase
             $this->assertEquals($btc, BlocktrailSDK::toBTC($satoshi), "[{$i}] {$satoshi} => {$btc}");
             $this->assertTrue($btc === BlocktrailSDK::toBTC($satoshi), "[{$i}] {$satoshi} => {$btc}");
         }
-        $this->markTestIncomplete("@TODO: test toBTCString");
+
     }
     public function testSigning()
     {
-        error_log('BEGIN');
         $client = $this->setupBadBlocktrailSDK();
-        error_log('have');
         $e = null;
         try {
-            error_log('verify');
             $client->verifyAddress("16dwJmR4mX5RguGrocMfN9Q9FR2kZcLw2z", "HPMOHRgPSMKdXrU6AqQs/i9S7alOakkHsJiqLGmInt05Cxj6b/WhS7kJxbIQxKmDW08YKzoFnbVZIoTI2qofEzk=");
         } catch (InvalidCredentials $e) {
         }
