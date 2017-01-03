@@ -7,3 +7,4 @@ as development dependency (since it is dependency free).
 
 It is not to build an application with, that's what the official
 bindings are for.
+
