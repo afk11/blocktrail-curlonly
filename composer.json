@@ -1,5 +1,6 @@
 {
   "name": "afk11/blocktrail-curlonly",
+  "license": "MIT",
   "require": {
     "afk11/minirest": "v1.1.1"
   },
